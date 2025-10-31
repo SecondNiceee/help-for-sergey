@@ -6,7 +6,7 @@ const app = next({ dev, dir: __dirname })
 const handle = app.getRequestHandler()
 
 // Custom User-Agent for health checks (ASCII only — HTTP headers must be Latin-1)
-const USER_AGENT = "Mozilla/5.0 (compatible; HealthChecker/1.0; SITE_MONITORING)"
+const USER_AGENT = "Mozilla/5.0 (compatible; HealthChecker/1.0; https://help-for-sergey.onrender.com/)"
 
 // In-memory storage for status and history (keep last 10)
 let statusStore = {
