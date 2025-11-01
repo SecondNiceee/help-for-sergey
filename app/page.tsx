@@ -89,19 +89,6 @@ export default function MonitoringPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-            <Activity className="h-4 w-4" />
-            <span>Live Monitoring</span>
-          </div>
-          <h1 className="mb-4 text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-            CDEK API Monitor
-          </h1>
-          <p className="mx-auto max-w-2xl text-pretty text-lg text-muted-foreground">
-            Автоматический мониторинг доступности API каждую минуту
-          </p>
-        </div>
 
         {/* Main Status Card */}
         <Card className="mb-8 overflow-hidden border-2">
