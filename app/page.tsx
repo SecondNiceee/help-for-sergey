@@ -89,11 +89,21 @@ export default function MonitoringPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-
         {/* Main Status Card */}
         <Card className="mb-8 overflow-hidden border-2">
           <div className={`p-8 ${status?.success ? "bg-emerald-500/5" : "bg-red-500/5"}`}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-8">
+              <div className="flex flex-col items-center justify-center">
+                <div
+                  className={`text-9xl font-bold font-mono tracking-tight ${
+                    status?.success ? "text-emerald-500" : "text-red-500"
+                  }`}
+                >
+                  {status?.statusCode || "—"}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">HTTP Status Code</p>
+              </div>
+
               <div className="flex-1">
                 <div className="mb-4 flex items-center gap-3">
                   {status?.success ? (
@@ -105,11 +115,11 @@ export default function MonitoringPage() {
                     <h2 className="text-2xl font-bold text-foreground">
                       {status?.success ? "Система работает" : "Ошибка подключения"}
                     </h2>
-                    <p className="text-sm text-muted-foreground">https://lk.smartcardio.ru/cdek</p>
+                    <p className="text-sm text-muted-foreground">https://api.smartcardio.ru/ping</p>
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-lg bg-background/50 p-4">
                     <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
@@ -128,11 +138,6 @@ export default function MonitoringPage() {
                     <p className="font-mono text-sm font-medium text-foreground">
                       {status ? `${status.responseTime}ms` : "—"}
                     </p>
-                  </div>
-
-                  <div className="rounded-lg bg-background/50 p-4">
-                    <div className="mb-1 text-sm text-muted-foreground">Статус</div>
-                    <p className="font-mono text-sm font-medium text-foreground">{status?.message || "—"}</p>
                   </div>
                 </div>
               </div>
