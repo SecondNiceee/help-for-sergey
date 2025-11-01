@@ -68,6 +68,7 @@ async function checkCDEK() {
     })
 
     const responseTime = Date.now() - startTime
+    const bodyText = await response.text()
     const isOk = response.status >= 200 && response.status < 400
 
     const newStatus = {
@@ -80,46 +81,46 @@ async function checkCDEK() {
       statusCode: response.status,
     }
 
-    // === Отправка уведомления при изменении статус-кода или ошибке ===
-    if (lastKnownStatusCode !== response.status) {
-      const message = `🔄 Изменение статуса!\nURL: ${CHECK_URL}\nСтатус: ${response.status} ${response.statusText}\nВремя ответа: ${responseTime} мс`
-      await sendTelegramMessage(message)
-      lastKnownStatusCode = response.status
+    // === Формируем тело для Telegram ===
+    const snippet = bodyText.substring(0, 200).replace(/\n/g, " ").trim()
+    const telegramMessage = `GET ${CHECK_URL}\n${response.status} ${response.statusText}\n${snippet}`
+
+    // === Отправляем, если статус изменился (включая тело) ===
+    const currentKey = response.status === 200 && bodyText ? "200+" + (bodyText.length > 0 ? "content" : "empty") : String(response.status)
+    if (lastKnownStatusCode !== currentKey) {
+      await sendTelegramMessage(telegramMessage)
+      lastKnownStatusCode = currentKey
     }
 
-    // Обновляем статус
     statusStore = newStatus
-    historyStore.push(statusStore)
+    historyStore.push(newStatus)
     if (historyStore.length > 10) historyStore.shift()
 
-    console.log("[SmartCardio Monitor] Check completed:", statusStore)
+    console.log("[SmartCardio Monitor] Check completed:", newStatus)
   } catch (error) {
     const responseTime = Date.now() - startTime
+    const errorMessage = error.message || "Unknown error"
 
     const newStatus = {
       success: false,
       timestamp: new Date().toISOString(),
-      message: error.message || "Unknown error",
+      message: errorMessage,
       responseTime,
       statusCode: null,
     }
 
-    // === Уведомление при ошибке (если предыдущий статус был не null или другой код) ===
-    if (lastKnownStatusCode !== null) {
-      const message = `⚠️ Ошибка при проверке!\nURL: ${CHECK_URL}\nОшибка: ${error.message || "Неизвестная ошибка"}\nВремя до ошибки: ${responseTime} мс`
-      await sendTelegramMessage(message)
-      lastKnownStatusCode = null // фиксируем, что сейчас "ошибка"
-    } else if (historyStore.length === 0) {
-      // Первый запуск с ошибкой — тоже отправляем
-      const message = `⚠️ Первый запуск: сервис недоступен!\nURL: ${CHECK_URL}\nОшибка: ${error.message || "Неизвестная ошибка"}`
-      await sendTelegramMessage(message)
+    const telegramMessage = `GET ${CHECK_URL}\n⚠️ Ошибка: ${errorMessage}\n(время до ошибки: ${responseTime} мс)`
+
+    if (lastKnownStatusCode !== "ERROR") {
+      await sendTelegramMessage(telegramMessage)
+      lastKnownStatusCode = "ERROR"
     }
 
     statusStore = newStatus
-    historyStore.push(statusStore)
+    historyStore.push(newStatus)
     if (historyStore.length > 10) historyStore.shift()
 
-    console.log("[SmartCardio Monitor] Check failed:", statusStore)
+    console.log("[SmartCardio Monitor] Check failed:", newStatus)
   }
 }
 
