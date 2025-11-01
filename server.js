@@ -6,12 +6,12 @@ const app = next({ dev, dir: __dirname })
 const handle = app.getRequestHandler()
 
 // === Telegram Bot Config ===
-const TELEGRAM_BOT_TOKEN = "8420130408:AAFOo4Gkz3dTAfPXE3sA-nrpjm9FenxifIs" // например: "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-const TELEGRAM_CHAT_ID = "-1003212760063"  // например: "-1001234567890" или "123456789"
+const TELEGRAM_BOT_TOKEN = "8420130408:AAFOo4Gkz3dTAfPXE3sA-nrpjm9FenxifIs"
+const TELEGRAM_CHAT_ID = "-1003212760063"
 
 // === Constants ===
 const USER_AGENT = "Mozilla/5.0 (compatible; HealthChecker/1.0; https://help-for-sergey.onrender.com/)"
-const CHECK_URL = "https://lk.smartcardio.ru/cdek"
+const CHECK_URL = "https://api.smartcardio.ru/ping"
 
 // === State ===
 let statusStore = {
@@ -22,7 +22,7 @@ let statusStore = {
   statusCode: null,
 }
 let historyStore = []
-let wasDown = false // флаг: был ли сервис недоступен на предыдущей проверке
+let lastKnownStatusCode = null // для отслеживания изменений
 
 // === Telegram sender ===
 async function sendTelegramMessage(text) {
@@ -53,10 +53,10 @@ async function sendTelegramMessage(text) {
   }
 }
 
-// === CDEK Checker ===
+// === SmartCardio Ping Checker ===
 async function checkCDEK() {
   const startTime = Date.now()
-  console.log("[CDEK Monitor] Starting check...")
+  console.log("[SmartCardio Monitor] Starting check...")
 
   try {
     const response = await fetch(CHECK_URL, {
@@ -80,24 +80,19 @@ async function checkCDEK() {
       statusCode: response.status,
     }
 
-    // === Логика уведомлений ===
-    if (isOk && wasDown) {
-      // Сервис восстановился!
-      await sendTelegramMessage("✅ Сервис опять заработал!")
-      wasDown = false
-    } else if (!isOk && !wasDown) {
-      // Только что упал
-      await sendTelegramMessage("⚠️ Сервис перестал работать!")
-      wasDown = true
+    // === Отправка уведомления при изменении статус-кода или ошибке ===
+    if (lastKnownStatusCode !== response.status) {
+      const message = `🔄 Изменение статуса!\nURL: ${CHECK_URL}\nСтатус: ${response.status} ${response.statusText}\nВремя ответа: ${responseTime} мс`
+      await sendTelegramMessage(message)
+      lastKnownStatusCode = response.status
     }
-    // Если уже был down — не отправляем повторно
 
     // Обновляем статус
     statusStore = newStatus
     historyStore.push(statusStore)
     if (historyStore.length > 10) historyStore.shift()
 
-    console.log("[CDEK Monitor] Check completed:", statusStore)
+    console.log("[SmartCardio Monitor] Check completed:", statusStore)
   } catch (error) {
     const responseTime = Date.now() - startTime
 
@@ -109,17 +104,22 @@ async function checkCDEK() {
       statusCode: null,
     }
 
-    // === Уведомление при падении ===
-    if (!wasDown) {
-      await sendTelegramMessage("⚠️ Сервис перестал работать!")
-      wasDown = true
+    // === Уведомление при ошибке (если предыдущий статус был не null или другой код) ===
+    if (lastKnownStatusCode !== null) {
+      const message = `⚠️ Ошибка при проверке!\nURL: ${CHECK_URL}\nОшибка: ${error.message || "Неизвестная ошибка"}\nВремя до ошибки: ${responseTime} мс`
+      await sendTelegramMessage(message)
+      lastKnownStatusCode = null // фиксируем, что сейчас "ошибка"
+    } else if (historyStore.length === 0) {
+      // Первый запуск с ошибкой — тоже отправляем
+      const message = `⚠️ Первый запуск: сервис недоступен!\nURL: ${CHECK_URL}\nОшибка: ${error.message || "Неизвестная ошибка"}`
+      await sendTelegramMessage(message)
     }
 
     statusStore = newStatus
     historyStore.push(statusStore)
     if (historyStore.length > 10) historyStore.shift()
 
-    console.log("[CDEK Monitor] Check failed:", statusStore)
+    console.log("[SmartCardio Monitor] Check failed:", statusStore)
   }
 }
 
@@ -128,12 +128,12 @@ app.prepare().then(() => {
   const server = express()
 
   server.get("/api/status", (req, res) => {
-    res.json({ latest: statusStore, history: historyStore, wasDown })
+    res.json({ latest: statusStore, history: historyStore, lastKnownStatusCode })
   })
 
   server.post("/api/check-now", async (req, res) => {
     await checkCDEK()
-    res.json({ success: true, status: { latest: statusStore, history: historyStore, wasDown } })
+    res.json({ success: true, status: { latest: statusStore, history: historyStore, lastKnownStatusCode } })
   })
 
   server.all(/.*/, (req, res) => {
@@ -145,7 +145,7 @@ app.prepare().then(() => {
   server.listen(PORT, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${PORT}`)
-    console.log("[CDEK Monitor] Starting background checks every 60 seconds...")
+    console.log("[SmartCardio Monitor] Starting background checks every 60 seconds...")
 
     checkCDEK()
     setInterval(checkCDEK, 60000)
