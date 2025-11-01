@@ -10,7 +10,8 @@ const TELEGRAM_BOT_TOKEN = "8420130408:AAFOo4Gkz3dTAfPXE3sA-nrpjm9FenxifIs"
 const TELEGRAM_CHAT_ID = "-1003212760063"
 
 // === Constants ===
-const USER_AGENT = "Mozilla/5.0 (compatible; HealthChecker/1.0; https://help-for-sergey.onrender.com/)"
+const MONITOR_URL = "https://help-for-sergey.onrender.com/"
+const USER_AGENT = `Mozilla/5.0 (compatible; HealthChecker/1.0; ${MONITOR_URL})`
 const CHECK_URL = "https://api.smartcardio.ru/ping"
 
 // === State ===
@@ -83,7 +84,7 @@ async function checkCDEK() {
 
     // === Формируем тело для Telegram ===
     const snippet = bodyText.substring(0, 200).replace(/\n/g, " ").trim()
-    const telegramMessage = `GET ${CHECK_URL}\n${response.status} ${response.statusText}\n${snippet}`
+    let telegramMessage = `GET ${CHECK_URL}\n${response.status} ${response.statusText}\n${snippet}\n— Отправлено с: ${MONITOR_URL}`
 
     // === Отправляем, если статус изменился (включая тело) ===
     const currentKey = response.status === 200 && bodyText ? "200+" + (bodyText.length > 0 ? "content" : "empty") : String(response.status)
@@ -109,7 +110,7 @@ async function checkCDEK() {
       statusCode: null,
     }
 
-    const telegramMessage = `GET ${CHECK_URL}\n⚠️ Ошибка: ${errorMessage}\n(время до ошибки: ${responseTime} мс)`
+    const telegramMessage = `GET ${CHECK_URL}\n⚠️ Ошибка: ${errorMessage}\n(время до ошибки: ${responseTime} мс)\n— Отправлено с: ${MONITOR_URL}`
 
     if (lastKnownStatusCode !== "ERROR") {
       await sendTelegramMessage(telegramMessage)
